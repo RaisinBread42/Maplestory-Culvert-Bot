@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, Events, EmbedBuilder, GatewayIntentBits } = require("discord.js")
 var { token } = require('./config.json');
+const fetch = require('node-fetch');
 
 // test call ocr.py script 
 // TODO - put in own module
@@ -45,28 +46,38 @@ client.on("ready", () => {
 })
 
 client.on("messageCreate", (message) => {
-    if(message.content == "!upload"){
+    if (message.content == "!upload") {
+
+        // fetch and save image so ocr.py can later read and process
+        const localPath = path.join(__dirname, 'images', 'image.png');
+        message.attachments.forEach(async a => {
+            console.log(a.url)
+            var response = await fetch(a.url);
+            var fileBuffer = Buffer.from(await response.arrayBuffer());
+            fs.writeFileSync(`images/${a.name}`, fileBuffer);
+        })
+
 
         const exampleEmbed = new EmbedBuilder()
-        .setColor(0x0099FF)
-        .setTitle('Some title')
-        .setURL('https://discord.js.org/')
-        .setAuthor({ name: 'Some name', iconURL: 'https://i.imgur.com/AfFp7pu.png', url: 'https://discord.js.org' })
-        .setDescription('Some description here')
-        .setThumbnail('https://i.imgur.com/AfFp7pu.png')
-        .addFields(
-            { name: 'Regular field title', value: 'Some value here' },
-            { name: '\u200B', value: '\u200B' },
-            { name: 'Inline field title', value: 'Some value here', inline: true },
-            { name: 'Inline field title', value: 'Some value here', inline: true },
+            .setColor(0x0099FF)
+            .setTitle('Some title')
+            .setURL('https://discord.js.org/')
+            .setAuthor({ name: 'Some name', iconURL: 'https://i.imgur.com/AfFp7pu.png', url: 'https://discord.js.org' })
+            .setDescription('Some description here')
+            .setThumbnail('https://i.imgur.com/AfFp7pu.png')
+            .addFields(
+                { name: 'Regular field title', value: 'Some value here' },
+                { name: '\u200B', value: '\u200B' },
+                { name: 'Inline field title', value: 'Some value here', inline: true },
+                { name: 'Inline field title', value: 'Some value here', inline: true },
             )
             .addFields({ name: 'Inline field title', value: 'Some value here', inline: true })
             .setImage('https://i.imgur.com/AfFp7pu.png')
             .setTimestamp()
             .setFooter({ text: 'Some footer text here', iconURL: 'https://i.imgur.com/AfFp7pu.png' });
-            
-            message.channel.send({ embeds: [exampleEmbed] });
-        }
+
+        message.channel.send({ embeds: [exampleEmbed] });
+    }
 })
 
 
