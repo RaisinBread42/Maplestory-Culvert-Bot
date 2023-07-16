@@ -49,7 +49,6 @@ client.on("messageCreate", (message) => {
     if (message.content == "!upload") {
 
         // fetch and save image so ocr.py can later read and process
-        const localPath = path.join(__dirname, 'images', 'image.png');
         message.attachments.forEach(async a => {
             console.log(a.url)
             var response = await fetch(a.url);
