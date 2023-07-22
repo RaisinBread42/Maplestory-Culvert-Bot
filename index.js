@@ -58,22 +58,27 @@ client.on("messageCreate", (message) => {
 
 
         const exampleEmbed = new EmbedBuilder()
-            .setColor(0x0099FF)
-            .setTitle('Some title')
-            .setURL('https://discord.js.org/')
-            .setAuthor({ name: 'Some name', iconURL: 'https://i.imgur.com/AfFp7pu.png', url: 'https://discord.js.org' })
-            .setDescription('Some description here')
-            .setThumbnail('https://i.imgur.com/AfFp7pu.png')
+            .setColor(0x026623)
+            .setTitle('Culvert Data for SingularityX')
+            .setURL('https://mapleranks.com/u/singularityx')
+            .setDescription('View recent culvert scores')
+            .setThumbnail('https://i.mapleranks.com/u/NICJOEBPMCGMJOCCOGJCILFCDEKLCMDNLNLPOBPIIDLGPGLPIDIGOPHMECOBHMCFBLCCDLLHBCLJHDBLANOCLLIHFOBAANGFOAOBMDCCEINOGMBHDPADBLIINOMDJNBAICFMLMPADHEKGIHAPEAMFABDPJPBJCKEIMFIKBHOHIGMINCNBIAHHMNINFLKEMCNHGLENEMHIHPPGPOADGHKLEGCIDGGFJFNJILHDNEBGIBCIPHKFMFAAELEKDPCNNHE.png')
             .addFields(
-                { name: 'Regular field title', value: 'Some value here' },
-                { name: '\u200B', value: '\u200B' },
-                { name: 'Inline field title', value: 'Some value here', inline: true },
-                { name: 'Inline field title', value: 'Some value here', inline: true },
+                { name: 'Overall Ranking', value: '#1'},
             )
-            .addFields({ name: 'Inline field title', value: 'Some value here', inline: true })
-            .setImage('https://i.imgur.com/AfFp7pu.png')
-            .setTimestamp()
-            .setFooter({ text: 'Some footer text here', iconURL: 'https://i.imgur.com/AfFp7pu.png' });
+            .addFields(
+                { name: 'Highest Score', value: '20,000', inline: true },
+                { name: 'Week of', value: '07-22-2023', inline: true },
+                { name: 'Avg Score', value: '18,000', inline: true },
+            )
+            // .addFields(
+            //     { name: '\u200B', value: '\u200B' }, //adding empty row for spacing
+            // )
+            .addFields(
+                { name: 'Last 5 Scores', value: `\`\`\`20,000 on 06-22-2023\n18,000 on 05-22-2023\n18,000 on 04-22-2023\n17,000 on 03-22-2023\n20,000 on 01-22-2023 \`\`\``},
+            )
+            //.setImage('https://i.imgur.com/AfFp7pu.png') // url of generated chart.
+            .setFooter({ text: 'Made by Generosity', iconURL: 'https://media.istockphoto.com/id/817509202/vector/four-leaf-clover-vector-icon-clover-silhouette-simple-icon-illustration.jpg?s=612x612&w=0&k=20&c=w5o6sZPHaUuNHt_J8Lll1vDlDNaLeqBSkEFwrDZ5r1I='})
 
         message.channel.send({ embeds: [exampleEmbed] });
     }
