@@ -1,19 +1,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Collection, Events, EmbedBuilder, GatewayIntentBits } = require("discord.js")
-var { token } = require('./config.json');
 const fetch = require('node-fetch');
-
-// test call ocr.py script 
-// TODO - put in own module
+const config = require('./config.json');
+const { uploadImage } = require('./azure/azureservices.js');
 let { PythonShell } = require('python-shell')
-
-let pyshell = new PythonShell('ocr.py');
-
-pyshell.on('message', function (message) {
-    // received a message sent from the Python script (a simple "print" statement)
-    console.log(message);
-});
+const { Client, Collection, Events, EmbedBuilder, GatewayIntentBits } = require("discord.js")
+const { CosmosClient } = require("@azure/cosmos");
 
 const client = new Client({
     intents: [
@@ -38,49 +30,91 @@ for (const file of commandFiles) {
     }
 }
 
-
-
 // listeners
 client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}`)
 })
 
-client.on("messageCreate", (message) => {
+client.on("messageCreate", async (message) => {
     if (message.content == "!upload") {
-
         // fetch and save image so ocr.py can later read and process
         message.attachments.forEach(async a => {
-            console.log(a.url)
             var response = await fetch(a.url);
             var fileBuffer = Buffer.from(await response.arrayBuffer());
-            fs.writeFileSync(`images/${a.name}`, fileBuffer);
+            var filepath = `images/${a.name}`;
+            fs.writeFileSync(filepath, fileBuffer);
+            await uploadImage(filepath, a.name);
+            fs.unlink(filepath, (err) => {
+                if (err) {
+                    console.error('Error deleting the file:', err);
+                } else {
+                    console.log('File has been successfully deleted.');
+                }
+            });
+
+            PythonShell.run('ocr.py', null).then(message => {
+                console.log(message);
+            });
         })
+    }
 
+    if (message.content == "!gpq SingularityX") {
 
-        const exampleEmbed = new EmbedBuilder()
-            .setColor(0x026623)
-            .setTitle('Culvert Data for SingularityX')
-            .setURL('https://mapleranks.com/u/singularityx')
-            .setDescription('View recent culvert scores')
-            .setThumbnail('https://i.mapleranks.com/u/NICJOEBPMCGMJOCCOGJCILFCDEKLCMDNLNLPOBPIIDLGPGLPIDIGOPHMECOBHMCFBLCCDLLHBCLJHDBLANOCLLIHFOBAANGFOAOBMDCCEINOGMBHDPADBLIINOMDJNBAICFMLMPADHEKGIHAPEAMFABDPJPBJCKEIMFIKBHOHIGMINCNBIAHHMNINFLKEMCNHGLENEMHIHPPGPOADGHKLEGCIDGGFJFNJILHDNEBGIBCIPHKFMFAAELEKDPCNNHE.png')
-            .addFields(
-                { name: 'Overall Ranking', value: '#1'},
-            )
-            .addFields(
-                { name: 'Highest Score', value: '20,000', inline: true },
-                { name: 'Week of', value: '07-22-2023', inline: true },
-                { name: 'Avg Score', value: '18,000', inline: true },
-            )
-            // .addFields(
-            //     { name: '\u200B', value: '\u200B' }, //adding empty row for spacing
-            // )
-            .addFields(
-                { name: 'Last 5 Scores', value: `\`\`\`20,000 on 06-22-2023\n18,000 on 05-22-2023\n18,000 on 04-22-2023\n17,000 on 03-22-2023\n20,000 on 01-22-2023 \`\`\``},
-            )
-            //.setImage('https://i.imgur.com/AfFp7pu.png') // url of generated chart.
-            .setFooter({ text: 'Made by Generosity', iconURL: 'https://media.istockphoto.com/id/817509202/vector/four-leaf-clover-vector-icon-clover-silhouette-simple-icon-illustration.jpg?s=612x612&w=0&k=20&c=w5o6sZPHaUuNHt_J8Lll1vDlDNaLeqBSkEFwrDZ5r1I='})
+        // fetch data from database
+        const endpoint = config.azureCosmosDb.endpoint;
+        const key = config.azureCosmosDb.key;
+        const databaseId = config.azureCosmosDb.databaseId;
+        const containerId = config.azureCosmosDb.containerId;
+        const documentId = "SingularityX";
+        const partitionKey = "Hero"
 
-        message.channel.send({ embeds: [exampleEmbed] });
+        let data = {};
+
+        // Function to fetch a document from Azure Cosmos DB
+        const client = new CosmosClient({ endpoint, key });
+        const container = client.database(databaseId).container(containerId);
+        try {
+            const { resource } = await container.item(documentId,partitionKey).read();
+            data = resource;
+
+            //build out embedded message
+            let scores = data.scores;
+            let highestScore = scores.reduce((prev, current) => { return prev.amount > current.amount ? prev : current; });
+            let avgScore = (scores.reduce((sum, current) => sum + current.amount, 0)) / scores.length;
+            let latest5Scores = `\`\`\``;
+            scores.forEach((obj) => {
+                latest5Scores = latest5Scores.concat(`${obj.amount} on ${obj.date} \n`);
+            });
+            latest5Scores = latest5Scores.concat(`\`\`\``);
+
+            const exampleEmbed = new EmbedBuilder()
+                .setColor(0x026623)
+                .setTitle('Culvert Data for SingularityX')
+                .setURL('https://mapleranks.com/u/singularityx')
+                .setDescription(data.class)
+                .setThumbnail('https://i.mapleranks.com/u/NICJOEBPMCGMJOCCOGJCILFCDEKLCMDNLNLPOBPIIDLGPGLPIDIGOPHMECOBHMCFBLCCDLLHBCLJHDBLANOCLLIHFOBAANGFOAOBMDCCEINOGMBHDPADBLIINOMDJNBAICFMLMPADHEKGIHAPEAMFABDPJPBJCKEIMFIKBHOHIGMINCNBIAHHMNINFLKEMCNHGLENEMHIHPPGPOADGHKLEGCIDGGFJFNJILHDNEBGIBCIPHKFMFAAELEKDPCNNHE.png')
+                .addFields(
+                    { name: 'Overall Ranking', value: '#1' },
+                )
+                .addFields(
+                    { name: 'Highest Score', value: highestScore.amount.toLocaleString('en-US'), inline: true },
+                    { name: 'Week of', value: highestScore.date, inline: true },
+                    { name: 'Avg Score', value: avgScore.toLocaleString('en-US'), inline: true },
+                )
+                // .addFields(
+                //     { name: '\u200B', value: '\u200B' }, //adding empty row for spacing
+                // )
+                .addFields(
+                    { name: 'Last 5 Scores', value: latest5Scores },
+                )
+                //.setImage('https://i.imgur.com/AfFp7pu.png') // url of generated chart.
+                .setFooter({ text: 'Made by Generosity', iconURL: 'https://media.istockphoto.com/id/817509202/vector/four-leaf-clover-vector-icon-clover-silhouette-simple-icon-illustration.jpg?s=612x612&w=0&k=20&c=w5o6sZPHaUuNHt_J8Lll1vDlDNaLeqBSkEFwrDZ5r1I=' })
+
+            message.channel.send({ embeds: [exampleEmbed] });
+
+        } catch (error) {
+            console.error("Error fetching document:", error);
+        }
     }
 })
 
@@ -108,4 +142,4 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
-client.login(token)
+client.login(config.discord.token)
