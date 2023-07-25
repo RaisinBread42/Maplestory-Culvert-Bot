@@ -1,5 +1,5 @@
 from azure.storage.blob import BlobServiceClient
-from azure.cosmos import CosmosClient, PartitionKey
+from azure.cosmos import CosmosClient, exceptions
 import configparser
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -29,7 +29,8 @@ print("Image downloaded successfully.")
 
 print("Extracted results from OCR.")
 results = {
-    "id": "SingularityX",
+    "id": "SingularityX3",
+    "partitionKey": "Hero",
     "scores": [
         {
             "amount": 20000,
@@ -66,8 +67,13 @@ container = database.get_container_client(container_name)
 # Define the document you want to update
 document_id = results["id"]
 
+
 # Retrieve the existing document
-response = container.read_item(item=document_id, partition_key=partition_key_value)
+try:
+    response = container.read_item(item=document_id, partition_key=partition_key_value)
+except exceptions.CosmosResourceNotFoundError:    
+    print("No existing culvert data found. Adding to database.")
+    response = container.create_item(body=results)
 
 # Update the properties in the document
 # Loop through and find any with same date. If so update, else add to score list

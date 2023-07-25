@@ -4,8 +4,9 @@ const fetch = require('node-fetch');
 const config = require('./config.json');
 const { uploadImage } = require('./azure/azureservices.js');
 let { PythonShell } = require('python-shell')
-const { Client, Collection, Events, EmbedBuilder, GatewayIntentBits } = require("discord.js")
+const { Client, Collection, Events, EmbedBuilder, GatewayIntentBits, AttachmentBuilder } = require("discord.js")
 const { CosmosClient } = require("@azure/cosmos");
+const { generateScoreChart } = require('./chartjs-discord.js');
 
 const client = new Client({
     intents: [
@@ -83,9 +84,11 @@ client.on("messageCreate", async (message) => {
             let avgScore = (scores.reduce((sum, current) => sum + current.amount, 0)) / scores.length;
             let latest5Scores = `\`\`\``;
             scores.forEach((obj) => {
-                latest5Scores = latest5Scores.concat(`${obj.amount} on ${obj.date} \n`);
+                latest5Scores = latest5Scores.concat(`${obj.amount.toLocaleString('en-US')} on ${obj.date} \n`);
             });
             latest5Scores = latest5Scores.concat(`\`\`\``);
+
+            let attachment = await generateScoreChart(scores);
 
             const exampleEmbed = new EmbedBuilder()
                 .setColor(0x026623)
@@ -93,6 +96,7 @@ client.on("messageCreate", async (message) => {
                 .setURL('https://mapleranks.com/u/singularityx')
                 .setDescription(data.class)
                 .setThumbnail('https://i.mapleranks.com/u/NICJOEBPMCGMJOCCOGJCILFCDEKLCMDNLNLPOBPIIDLGPGLPIDIGOPHMECOBHMCFBLCCDLLHBCLJHDBLANOCLLIHFOBAANGFOAOBMDCCEINOGMBHDPADBLIINOMDJNBAICFMLMPADHEKGIHAPEAMFABDPJPBJCKEIMFIKBHOHIGMINCNBIAHHMNINFLKEMCNHGLENEMHIHPPGPOADGHKLEGCIDGGFJFNJILHDNEBGIBCIPHKFMFAAELEKDPCNNHE.png')
+                .setImage("attachment://graph.png")
                 .addFields(
                     { name: 'Overall Ranking', value: '#1' },
                 )
@@ -110,7 +114,7 @@ client.on("messageCreate", async (message) => {
                 //.setImage('https://i.imgur.com/AfFp7pu.png') // url of generated chart.
                 .setFooter({ text: 'Made by Generosity', iconURL: 'https://media.istockphoto.com/id/817509202/vector/four-leaf-clover-vector-icon-clover-silhouette-simple-icon-illustration.jpg?s=612x612&w=0&k=20&c=w5o6sZPHaUuNHt_J8Lll1vDlDNaLeqBSkEFwrDZ5r1I=' })
 
-            message.channel.send({ embeds: [exampleEmbed] });
+            message.channel.send({ embeds: [exampleEmbed], files: [attachment] });
 
         } catch (error) {
             console.error("Error fetching document:", error);
