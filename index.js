@@ -2,10 +2,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const fetch = require('node-fetch');
 const config = require('./config.json');
-const { uploadImage } = require('./azure/azureservices.js');
-let { PythonShell } = require('python-shell')
+const CSV = require('csv-string');
+const DateHelper = require("./Helpers/DateHelpers.js");
+const { MongoClient, ServerApiVersion } = require("mongodb");
 const { Client, Collection, Events, EmbedBuilder, GatewayIntentBits, AttachmentBuilder } = require("discord.js")
-const { CosmosClient } = require("@azure/cosmos");
 const { generateScoreChart } = require('./chartjs-discord.js');
 
 const client = new Client({
@@ -37,26 +37,108 @@ client.on("ready", () => {
 })
 
 client.on("messageCreate", async (message) => {
-    if (message.content == "!upload") {
-        // fetch and save image so ocr.py can later read and process
-        message.attachments.forEach(async a => {
-            var response = await fetch(a.url);
-            var fileBuffer = Buffer.from(await response.arrayBuffer());
-            var filepath = `images/${a.name}`;
-            fs.writeFileSync(filepath, fileBuffer);
-            await uploadImage(filepath, a.name);
-            fs.unlink(filepath, (err) => {
-                if (err) {
-                    console.error('Error deleting the file:', err);
-                } else {
-                    console.log('File has been successfully deleted.');
-                }
-            });
+    if (message.content.includes("!update")) {
+        try {
+            //get date - can definitely use some improvement with validation checks!
+            const date = (DateHelper.isSunday()) ? new Date() : DateHelper.nextSundayDate(new Date().getDay());
+            const guildId = message.guildId;
 
-            PythonShell.run('ocr.py', null).then(message => {
-                console.log(message);
-            });
-        })
+            // get the csv file's URL
+            const file = message.attachments.first()?.url;
+            if (!file) return console.log('No attached file found');
+
+            message.channel.send('Reading the file! Fetching data...');
+
+            // fetch the file from the external URL
+            const response = await fetch(file);
+
+            // if there was an error send a message with the status
+            if (!response.ok)
+                return message.channel.send(
+                    'There was an error with fetching the file:',
+                    response.statusText,
+                );
+
+            // take the response stream and read it to completion
+            const text = await response.text();
+
+            //convert into array
+            const characters = CSV.parse(text).slice(1);
+            //console.log(characters);
+
+            //loop list, generate bulk update object list
+            //update db
+            const client = new MongoClient(config.MongoDBUri, {
+                serverApi: {
+                    version: ServerApiVersion.v1,
+                    strict: true,
+                    deprecationErrors: true,
+                }
+            }
+            );
+
+            let additions = [];
+            let updates = [];
+            try {
+                await client.connect();
+                const db = client.db('MaplestoryGPQ');
+                const collection = db.collection("GPQ");
+
+                for (let i = 0; i < characters.length; i++) {
+                    //console.log(`${ign}: Level-${lvl}, Score-${score}, Flag:${flag}`);
+
+                    let char = characters[i];
+                    let ign = char[0];
+
+                    let docCount = await collection.countDocuments({ ign: ign });
+
+                    if (docCount < 1) {
+                        //add new document
+                        var data = {
+                            guildId: message.guildId,
+                            ign: ign,
+                            scores: []
+                        };
+
+                        additions.push(data);
+
+                    } else {
+                        //update document
+                        // var data = {
+                        //     date: date.toLocaleDateString(),
+                        //     lvl: parseInt(char[1]),
+                        //     score: parseInt(char[2].replace(/\D/g, '')),
+                        //     flag: parseInt(char[3])
+                        // };
+
+                        // // check if exists, create update statement, else add statement
+                        // updates.push(
+                        //     {
+                        //         updateOne: {
+                        //             filter: { ign: ign },
+                        //             update: { $push: { scores:data } },
+                        //             upsert:true
+                        //         }
+                        //     }
+                        // );
+                    }
+                }
+                
+                await collection.insertMany(additions);
+                //await collection.bulkWrite(updates);
+                
+                message.channel.send('Scores updated successfully!');
+
+            } catch (error) {
+                console.log(error);
+                message.channel.send('1 or more errors encountered processing scores.');
+            } finally {
+                await client.close();
+            }
+
+        } catch (error) {
+            console.log(error);
+        }
     }
 
     if (message.content == "!gpq SingularityX") {
@@ -75,7 +157,7 @@ client.on("messageCreate", async (message) => {
         const client = new CosmosClient({ endpoint, key });
         const container = client.database(databaseId).container(containerId);
         try {
-            const { resource } = await container.item(documentId,partitionKey).read();
+            const { resource } = await container.item(documentId, partitionKey).read();
             data = resource;
 
             //build out embedded message
