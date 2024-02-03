@@ -8,7 +8,7 @@ let chartEmbed = {};
 // Pass as much parameter as you need
 const generateScoreChart = async (scores) => {
     let labels = scores.map((s) => { return [s["date"].slice(0,-5), '2023'] });
-    let data = scores.map((s) => { return s["amount"] });
+    let data = scores.map((s) => { return s["score"] });
 
     const renderer = new ChartJSNodeCanvas({ width: 800, height: 600, plugins: {
         modern: ['chartjs-plugin-datalabels']

@@ -40,7 +40,7 @@ client.on("messageCreate", async (message) => {
     if (message.content.includes("!update")) {
         try {
             //get date - can definitely use some improvement with validation checks!
-            const date = (DateHelper.isSunday()) ? new Date() : DateHelper.nextSundayDate(new Date().getDay());
+            const date = (DateHelper.isSunday()) ? new Date() : DateHelper.nextSundayDate(0);
             const guildId = message.guildId;
 
             // get the csv file's URL
@@ -64,7 +64,6 @@ client.on("messageCreate", async (message) => {
 
             //convert into array
             const characters = CSV.parse(text).slice(1);
-            //console.log(characters);
 
             //loop list, generate bulk update object list
             //update db
@@ -78,55 +77,57 @@ client.on("messageCreate", async (message) => {
             );
 
             let additions = [];
-            let updates = [];
+            let bulkUpdates = [];
             try {
                 await client.connect();
                 const db = client.db('MaplestoryGPQ');
                 const collection = db.collection("GPQ");
 
                 for (let i = 0; i < characters.length; i++) {
-                    //console.log(`${ign}: Level-${lvl}, Score-${score}, Flag:${flag}`);
 
                     let char = characters[i];
                     let ign = char[0];
+                    var dateKey = date.toLocaleDateString();
 
-                    let docCount = await collection.countDocuments({ ign: ign });
+                    var data = {
+                        guildId: message.guildId,
+                        ign: ign,
+                        lvl: parseInt(char[1]),
+                        date: dateKey,
+                        dateStamp: date,
+                        score: parseInt(char[2].replace(/\D/g, '')),
+                        flag: parseInt(char[3])
+                    };
 
-                    if (docCount < 1) {
-                        //add new document
-                        var data = {
-                            guildId: message.guildId,
-                            ign: ign,
-                            scores: []
-                        };
+                    let existingDocCount = await collection.countDocuments({ ign: ign, date: dateKey });
 
+                    if (existingDocCount < 1) {
                         additions.push(data);
-
                     } else {
-                        //update document
-                        // var data = {
-                        //     date: date.toLocaleDateString(),
-                        //     lvl: parseInt(char[1]),
-                        //     score: parseInt(char[2].replace(/\D/g, '')),
-                        //     flag: parseInt(char[3])
-                        // };
-
-                        // // check if exists, create update statement, else add statement
-                        // updates.push(
-                        //     {
-                        //         updateOne: {
-                        //             filter: { ign: ign },
-                        //             update: { $push: { scores:data } },
-                        //             upsert:true
-                        //         }
-                        //     }
-                        // );
+                        //queue for bulk write
+                        bulkUpdates.push(
+                            {
+                                updateOne: {
+                                    filter: { ign: ign, date: dateKey },
+                                    update: { $set: {
+                                        lvl: data.lvl,
+                                        score: data.score,
+                                        flag: data.flag
+                                    }
+                                }
+                            }
+                    });
                     }
                 }
-                
-                await collection.insertMany(additions);
-                //await collection.bulkWrite(updates);
-                
+
+                 if (additions.length > 0) {
+                    await collection.insertMany(additions);
+                }
+
+                if (bulkUpdates.length > 0) {
+                    await collection.bulkWrite(bulkUpdates);
+                }
+
                 message.channel.send('Scores updated successfully!');
 
             } catch (error) {
@@ -141,50 +142,56 @@ client.on("messageCreate", async (message) => {
         }
     }
 
+    //check for gpq score command with ign
     if (message.content == "!gpq SingularityX") {
 
-        // fetch data from database
-        const endpoint = config.azureCosmosDb.endpoint;
-        const key = config.azureCosmosDb.key;
-        const databaseId = config.azureCosmosDb.databaseId;
-        const containerId = config.azureCosmosDb.containerId;
-        const documentId = "SingularityX";
-        const partitionKey = "Hero"
+        let ign = "SingularityX";
 
-        let data = {};
+        // fetch data from database
+        const client = new MongoClient(config.MongoDBUri, {
+            serverApi: {
+                version: ServerApiVersion.v1,
+                strict: true,
+                deprecationErrors: true,
+            }
+        }
+        );
 
         // Function to fetch a document from Azure Cosmos DB
-        const client = new CosmosClient({ endpoint, key });
-        const container = client.database(databaseId).container(containerId);
         try {
-            const { resource } = await container.item(documentId, partitionKey).read();
-            data = resource;
+            await client.connect();
+            const db = client.db('MaplestoryGPQ');
+            const collection = db.collection("GPQ");
+            const findResult = await collection.find({ ign: ign });
+            let data = [];
+            for await (const doc of findResult){
+                data.push(doc);
+            }
 
             //build out embedded message
-            let scores = data.scores;
-            let highestScore = scores.reduce((prev, current) => { return prev.amount > current.amount ? prev : current; });
-            let avgScore = (scores.reduce((sum, current) => sum + current.amount, 0)) / scores.length;
+            let highestScore = data.reduce((prev, current) => { return prev.score > current.score ? prev : current; });
+            let avgScore = (data.reduce((sum, current) => { return sum.score + current.score})) / data.length;
             let latest5Scores = `\`\`\``;
-            scores.forEach((obj) => {
-                latest5Scores = latest5Scores.concat(`${obj.amount.toLocaleString('en-US')} on ${obj.date} \n`);
+            data.forEach((obj) => {
+                latest5Scores = latest5Scores.concat(`${obj.score.toLocaleString('en-US')} on ${obj.date} \n`);
             });
             latest5Scores = latest5Scores.concat(`\`\`\``);
 
-            let attachment = await generateScoreChart(scores);
+            let attachment = await generateScoreChart(data);
 
             const exampleEmbed = new EmbedBuilder()
                 .setColor(0x026623)
                 .setTitle('Culvert Data for SingularityX')
                 .setURL('https://mapleranks.com/u/singularityx')
-                .setDescription(data.class)
+                .setDescription("<class goes here>")
                 .setThumbnail('https://i.mapleranks.com/u/NICJOEBPMCGMJOCCOGJCILFCDEKLCMDNLNLPOBPIIDLGPGLPIDIGOPHMECOBHMCFBLCCDLLHBCLJHDBLANOCLLIHFOBAANGFOAOBMDCCEINOGMBHDPADBLIINOMDJNBAICFMLMPADHEKGIHAPEAMFABDPJPBJCKEIMFIKBHOHIGMINCNBIAHHMNINFLKEMCNHGLENEMHIHPPGPOADGHKLEGCIDGGFJFNJILHDNEBGIBCIPHKFMFAAELEKDPCNNHE.png')
                 .setImage("attachment://graph.png")
                 .addFields(
                     { name: 'Overall Ranking', value: '#1' },
                 )
                 .addFields(
-                    { name: 'Highest Score', value: highestScore.amount.toLocaleString('en-US'), inline: true },
-                    { name: 'Week of', value: highestScore.date, inline: true },
+                    { name: 'Highest Score', value: highestScore.score.toLocaleString('en-US'), inline: true },
+                    { name: 'Date', value: highestScore.date, inline: true },
                     { name: 'Avg Score', value: avgScore.toLocaleString('en-US'), inline: true },
                 )
                 // .addFields(
@@ -194,7 +201,7 @@ client.on("messageCreate", async (message) => {
                     { name: 'Last 5 Scores', value: latest5Scores },
                 )
                 //.setImage('https://i.imgur.com/AfFp7pu.png') // url of generated chart.
-                .setFooter({ text: 'Made by Generosity', iconURL: 'https://media.istockphoto.com/id/817509202/vector/four-leaf-clover-vector-icon-clover-silhouette-simple-icon-illustration.jpg?s=612x612&w=0&k=20&c=w5o6sZPHaUuNHt_J8Lll1vDlDNaLeqBSkEFwrDZ5r1I=' })
+                .setFooter({ text: 'Made by Generosity v0.9.0', iconURL: 'https://media.istockphoto.com/id/817509202/vector/four-leaf-clover-vector-icon-clover-silhouette-simple-icon-illustration.jpg?s=612x612&w=0&k=20&c=w5o6sZPHaUuNHt_J8Lll1vDlDNaLeqBSkEFwrDZ5r1I=' })
 
             message.channel.send({ embeds: [exampleEmbed], files: [attachment] });
 
