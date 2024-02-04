@@ -7,6 +7,7 @@ const DateHelper = require("./Helpers/DateHelpers.js");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const { Client, Collection, Events, EmbedBuilder, GatewayIntentBits, AttachmentBuilder } = require("discord.js")
 const { generateScoreChart } = require('./chartjs-discord.js');
+const { request } = require('undici');
 
 const client = new Client({
     intents: [
@@ -178,13 +179,15 @@ client.on("messageCreate", async (message) => {
             latest5Scores = latest5Scores.concat(`\`\`\``);
 
             let attachment = await generateScoreChart(data);
+            let charImageRequest = await request(`https://maplestory.nexon.net/api/ranking?id=overall&id2=legendary&rebootIndex=1&character_name=${ign}&page_index=1`)
+            let charImageResponse = (await charImageRequest.body.json())[0];
 
             const exampleEmbed = new EmbedBuilder()
                 .setColor(0x026623)
-                .setTitle('Culvert Data for SingularityX')
+                .setTitle(ign)
                 .setURL('https://mapleranks.com/u/singularityx')
                 .setDescription("<class goes here>")
-                .setThumbnail('https://i.mapleranks.com/u/NICJOEBPMCGMJOCCOGJCILFCDEKLCMDNLNLPOBPIIDLGPGLPIDIGOPHMECOBHMCFBLCCDLLHBCLJHDBLANOCLLIHFOBAANGFOAOBMDCCEINOGMBHDPADBLIINOMDJNBAICFMLMPADHEKGIHAPEAMFABDPJPBJCKEIMFIKBHOHIGMINCNBIAHHMNINFLKEMCNHGLENEMHIHPPGPOADGHKLEGCIDGGFJFNJILHDNEBGIBCIPHKFMFAAELEKDPCNNHE.png')
+                .setThumbnail(charImageResponse.CharacterImgUrl)
                 .setImage("attachment://graph.png")
                 .addFields(
                     { name: 'Overall Ranking', value: '#1' },
