@@ -41,7 +41,7 @@ client.on("messageCreate", async (message) => {
     if (message.content.includes("!update")) {
         try {
             //get date - can definitely use some improvement with validation checks!
-            const date = (DateHelper.isSunday()) ? new Date() : DateHelper.nextSundayDate(0);
+            const date = DateHelper.getSundayDate();
             const guildId = message.guildId;
 
             // get the csv file's URL
@@ -89,6 +89,7 @@ client.on("messageCreate", async (message) => {
                     let char = characters[i];
                     let ign = char[0];
                     var dateKey = date.toLocaleDateString();
+                    console.log(`Parsing and processing ${ign}.`);
 
                     var data = {
                         guildId: message.guildId,
@@ -144,9 +145,9 @@ client.on("messageCreate", async (message) => {
     }
 
     //check for gpq score command with ign
-    if (message.content == "!gpq SingularityX") {
+    if (message.content.includes("!gpq")) {
 
-        let ign = "SingularityX";
+        let ign = message.content.replace('!gpq ','');
 
         // fetch data from database
         const client = new MongoClient(config.MongoDBUri, {
@@ -164,14 +165,26 @@ client.on("messageCreate", async (message) => {
             const db = client.db('MaplestoryGPQ');
             const collection = db.collection("GPQ");
             const findResult = await collection.find({ ign: ign });
+            
             let data = [];
             for await (const doc of findResult){
                 data.push(doc);
             }
+            
+            const date = DateHelper.getSundayDate().toLocaleDateString();;
+            const ranksResults = await collection.find({ date:date});
+            
+            let rankingData = [];
+            for await (const doc of ranksResults){
+                rankingData.push(doc);
+            }
+
+            let userRank = (rankingData.sort( (a,b) => { return b-a}).findIndex(i => i.ign == ign) + 1);
 
             //build out embedded message
             let highestScore = data.reduce((prev, current) => { return prev.score > current.score ? prev : current; });
-            let avgScore = (data.reduce((sum, current) => { return sum.score + current.score})) / data.length;
+            let avgScore = data.length == 1 ? data[0].score : (data.reduce((sum, current) => { return sum.score + current.score})) / data.length;
+
             let latest5Scores = `\`\`\``;
             data.forEach((obj) => {
                 latest5Scores = latest5Scores.concat(`${obj.score.toLocaleString('en-US')} on ${obj.date} \n`);
@@ -184,13 +197,13 @@ client.on("messageCreate", async (message) => {
 
             const exampleEmbed = new EmbedBuilder()
                 .setColor(0x026623)
-                .setTitle(ign)
+                .setTitle("Culvert Score for " + ign)
                 .setURL('https://mapleranks.com/u/singularityx')
-                .setDescription("<class goes here>")
+                //.setDescription("<class goes here>")
                 .setThumbnail(charImageResponse.CharacterImgUrl)
                 .setImage("attachment://graph.png")
                 .addFields(
-                    { name: 'Overall Ranking', value: '#1' },
+                    { name: 'Current Ranking', value: '#'+userRank },
                 )
                 .addFields(
                     { name: 'Highest Score', value: highestScore.score.toLocaleString('en-US'), inline: true },
@@ -204,7 +217,7 @@ client.on("messageCreate", async (message) => {
                     { name: 'Last 5 Scores', value: latest5Scores },
                 )
                 //.setImage('https://i.imgur.com/AfFp7pu.png') // url of generated chart.
-                .setFooter({ text: 'Made by Generosity v0.9.0', iconURL: 'https://media.istockphoto.com/id/817509202/vector/four-leaf-clover-vector-icon-clover-silhouette-simple-icon-illustration.jpg?s=612x612&w=0&k=20&c=w5o6sZPHaUuNHt_J8Lll1vDlDNaLeqBSkEFwrDZ5r1I=' })
+                .setFooter({ text: 'Made for Generosity v0.9.0', iconURL: 'https://media.istockphoto.com/id/817509202/vector/four-leaf-clover-vector-icon-clover-silhouette-simple-icon-illustration.jpg?s=612x612&w=0&k=20&c=w5o6sZPHaUuNHt_J8Lll1vDlDNaLeqBSkEFwrDZ5r1I=' })
 
             message.channel.send({ embeds: [exampleEmbed], files: [attachment] });
 
