@@ -7,7 +7,7 @@ let chartEmbed = {};
 // This function will return MessageAttachment object from discord.js
 // Pass as much parameter as you need
 const generateScoreChart = async (scores) => {
-    let labels = scores.map((s) => { return [s["date"].slice(0,-5), '2023'] });
+    let labels = scores.map((s) => { return [s["date"].toLocaleDateString().slice(0,-5), '2023'] });
     let data = scores.map((s) => { return s["score"] });
 
     const renderer = new ChartJSNodeCanvas({ width: 800, height: 600, plugins: {
@@ -20,8 +20,8 @@ const generateScoreChart = async (scores) => {
             datasets: [
                 {
                     data: data,
-                    backgroundColor: 'rgba(2, 102, 35, 0.2)',
-                    borderColor: '#026623',
+                    backgroundColor: 'rgb(34,56,71)',
+                    borderColor: '#569AC3',
                     borderWidth: 3,
                     label: "Score",
                     datalabels: {
