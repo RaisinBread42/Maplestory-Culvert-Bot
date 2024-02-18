@@ -167,7 +167,7 @@ client.on("messageCreate", async (message) => {
 
             //sort by latest date
             data = data.sort(function(a,b){
-                return new Date(b.date) - new Date(a.date)
+                return new Date(a.date) - new Date(b.date)
             });
 
             const latestDate = data[0].date;
