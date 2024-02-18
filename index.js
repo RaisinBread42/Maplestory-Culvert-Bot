@@ -205,7 +205,7 @@ client.on("messageCreate", async (message) => {
                 .setThumbnail(charImageResponse.CharacterImgUrl)
                 .setImage("attachment://graph.png")
                 .addFields(
-                    { name: 'Current Ranking', value: '#'+userRank },
+                    { name: 'Weekly Ranking', value: '#'+userRank },
                 )
                 .addFields(
                     { name: 'Highest Score', value: NumberFormatHelper.toLocaleString(highestScore.score), inline: true },
