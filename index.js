@@ -170,7 +170,7 @@ client.on("messageCreate", async (message) => {
                 return new Date(a.date) - new Date(b.date)
             });
 
-            const latestDate = data[0].date;
+            const latestDate = data[data.length-1].date;
             const latestRecords = await collection.find({date:latestDate}).sort({"score": -1});
             let rankingData = [];
             for await (const doc of latestRecords){
