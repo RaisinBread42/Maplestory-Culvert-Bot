@@ -170,6 +170,7 @@ client.on("messageCreate", async (message) => {
                 return new Date(a.date) - new Date(b.date)
             });
 
+            let exactIgn = data[0].ign;
             const latestDate = data[data.length-1].date;
             const latestRecords = await collection.find({date:latestDate}).sort({"score": -1});
             let rankingData = [];
@@ -177,7 +178,7 @@ client.on("messageCreate", async (message) => {
                 rankingData.push(doc);
             }
 
-            let userRank = rankingData.length == 0 ? "To be calculated" : (rankingData.sort( (a,b) => { return b-a}).findIndex(i => i.ign == ign) + 1);
+            let userRank = rankingData.length == 0 ? "To be calculated" : (rankingData.sort( (a,b) => { return b-a}).findIndex(i => i.ign == exactIgn) + 1);
             
             //build out embedded message
             let highestScore = data.reduce((prev, current) => { return prev.score > current.score ? prev : current; });
@@ -196,12 +197,11 @@ client.on("messageCreate", async (message) => {
             let attachment = await generateScoreChart(data);
             let charImageRequest = await request(`https://maplestory.nexon.net/api/ranking?id=overall&id2=legendary&rebootIndex=1&character_name=${ign}&page_index=1`)
             let charImageResponse = (await charImageRequest.body.json())[0];
-            let title = data[0].ign;
 
             const exampleEmbed = new EmbedBuilder()
                 .setColor(0x0099FF)
-                .setTitle(title)
-                .setURL(`https://mapleranks.com/u/${title}`)
+                .setTitle(exactIgn)
+                .setURL(`https://mapleranks.com/u/${exactIgn}`)
                 .setDescription(charclass)
                 .setThumbnail(charImageResponse.CharacterImgUrl)
                 .setImage("attachment://graph.png")
