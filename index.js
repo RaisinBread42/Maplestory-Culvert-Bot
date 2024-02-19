@@ -153,7 +153,7 @@ client.on("messageCreate", async (message) => {
             await client.connect();
             const db = client.db('MaplestoryGPQ');
             const collection = db.collection("GPQ");
-            const findResult = await collection.find({ ign: ign });
+            const findResult = await collection.find({ ign: new RegExp("^" + ign, "i") });
             
             let data = [];
             for await (const doc of findResult){
@@ -196,11 +196,12 @@ client.on("messageCreate", async (message) => {
             let attachment = await generateScoreChart(data);
             let charImageRequest = await request(`https://maplestory.nexon.net/api/ranking?id=overall&id2=legendary&rebootIndex=1&character_name=${ign}&page_index=1`)
             let charImageResponse = (await charImageRequest.body.json())[0];
-            
+            let title = data[0].ign;
+
             const exampleEmbed = new EmbedBuilder()
                 .setColor(0x0099FF)
-                .setTitle(ign)
-                .setURL(`https://mapleranks.com/u/${ign}`)
+                .setTitle(title)
+                .setURL(`https://mapleranks.com/u/${title}`)
                 .setDescription(charclass)
                 .setThumbnail(charImageResponse.CharacterImgUrl)
                 .setImage("attachment://graph.png")
