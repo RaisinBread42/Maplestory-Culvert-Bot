@@ -197,12 +197,13 @@ client.on("messageCreate", async (message) => {
             let attachment = await generateScoreChart(data);
             let charImageRequest = await request(`https://maplestory.nexon.net/api/ranking?id=overall&id2=legendary&rebootIndex=1&character_name=${ign}&page_index=1`)
             let charImageResponse = (await charImageRequest.body.json())[0];
+            let level = data[data.length-1].lvl;
 
             const exampleEmbed = new EmbedBuilder()
                 .setColor(0x0099FF)
                 .setTitle(exactIgn)
                 .setURL(`https://mapleranks.com/u/${exactIgn}`)
-                .setDescription(charclass)
+                .setDescription("Level "+ level + " " + charclass)
                 .setThumbnail(charImageResponse.CharacterImgUrl)
                 .setImage("attachment://graph.png")
                 .addFields(
