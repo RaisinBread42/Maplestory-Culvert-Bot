@@ -25,113 +25,113 @@ client.on("ready", () => {
 
 client.on("messageCreate", async (message) => {
     //un comment to update database running in debug mode
-    // if (message.content.includes("!update")) {
-    //     try {
-    //         //get date - can definitely use some improvement with validation checks!
-    //         let dateParam = message.content.replace('!update ','').trim(); // dd/mm/yyyy
-    //         const date = dateParam == "" ? DateHelper.getSundayDate().toLocaleDateString() : new Date(dateParam);
-    //         const guildId = message.guildId;
+    if (message.content.includes("!update")) {
+        try {
+            //get date - can definitely use some improvement with validation checks!
+            let dateParam = message.content.replace('!update ','').trim(); // ex, 2024-03-10T05:00:00.000+00:00
+            const date = dateParam == "" ? DateHelper.getSundayDate().toLocaleDateString() : new Date(dateParam);
+            const guildId = message.guildId;
 
-    //         // get the csv file's URL
-    //         const file = message.attachments.first()?.url;
-    //         if (!file) return console.log('No attached file found');
+            // get the csv file's URL
+            const file = message.attachments.first()?.url;
+            if (!file) return console.log('No attached file found');
 
-    //         message.channel.send('Reading the file! Processing data...');
+            message.channel.send('Reading the file! Processing data...');
 
-    //         // fetch the file from the external URL
-    //         const response = await fetch(file);
+            // fetch the file from the external URL
+            const response = await fetch(file);
 
-    //         // if there was an error send a message with the status
-    //         if (!response.ok)
-    //             return message.channel.send(
-    //                 'There was an error with fetching the file:',
-    //                 response.statusText,
-    //             );
+            // if there was an error send a message with the status
+            if (!response.ok)
+                return message.channel.send(
+                    'There was an error with fetching the file:',
+                    response.statusText,
+                );
 
-    //         // take the response stream and read it to completion
-    //         const text = await response.text();
+            // take the response stream and read it to completion
+            const text = await response.text();
 
-    //         //convert into array
-    //         const characters = CSV.parse(text).slice(1);
+            //convert into array
+            const characters = CSV.parse(text).slice(1);
 
-    //         //loop list, generate bulk update object list
-    //         //update db
-    //         const client = new MongoClient(config.MongoDBUri, {
-    //             serverApi: {
-    //                 version: ServerApiVersion.v1,
-    //                 strict: true,
-    //                 deprecationErrors: true,
-    //             }
-    //         }
-    //         );
+            //loop list, generate bulk update object list
+            //update db
+            const client = new MongoClient(config.MongoDBUri, {
+                serverApi: {
+                    version: ServerApiVersion.v1,
+                    strict: true,
+                    deprecationErrors: true,
+                }
+            }
+            );
 
-    //         let additions = [];
-    //         let bulkUpdates = [];
-    //         try {
-    //             await client.connect();
-    //             const db = client.db('MaplestoryGPQ');
-    //             const collection = db.collection("GPQ");
+            let additions = [];
+            let bulkUpdates = [];
+            try {
+                await client.connect();
+                const db = client.db('MaplestoryGPQ');
+                const collection = db.collection("GPQ");
 
-    //             for (let i = 0; i < characters.length; i++) {
+                for (let i = 0; i < characters.length; i++) {
 
-    //                 let char = characters[i];
-    //                 let ign = char[0];
-    //                 var dateKey = date;
-    //                 console.log(`Parsing and processing ${ign}.`);
+                    let char = characters[i];
+                    let ign = char[0];
+                    var dateKey = date;
+                    console.log(`Parsing and processing ${ign}.`);
 
-    //                 var data = {
-    //                     guildId: message.guildId,
-    //                     ign: ign,
-    //                     class: char[1],
-    //                     lvl: parseInt(char[2]),
-    //                     date: dateKey,
-    //                     updatedOn: new Date(),
-    //                     score: parseInt(char[3].replace(/\D/g, '')),
-    //                     flag: parseInt(char[4])
-    //                 };
+                    var data = {
+                        guildId: message.guildId,
+                        ign: ign,
+                        class: char[1],
+                        lvl: parseInt(char[2]),
+                        date: dateKey,
+                        updatedOn: new Date(),
+                        score: parseInt(char[3].replace(/\D/g, '')),
+                        flag: parseInt(char[4])
+                    };
 
-    //                 let existingDocCount = await collection.countDocuments({ ign: ign, date: dateKey });
+                    let existingDocCount = await collection.countDocuments({ ign: ign, date: dateKey });
 
-    //                 if (existingDocCount < 1) {
-    //                     additions.push(data);
-    //                 } else {
-    //                     //queue for bulk write
-    //                     bulkUpdates.push(
-    //                         {
-    //                             updateOne: {
-    //                                 filter: { ign: ign, date: dateKey },
-    //                                 update: { $set: {
-    //                                     lvl: data.lvl,
-    //                                     score: data.score,
-    //                                     flag: data.flag
-    //                                 }
-    //                             }
-    //                         }
-    //                 });
-    //                 }
-    //             }
+                    if (existingDocCount < 1) {
+                        additions.push(data);
+                    } else {
+                        //queue for bulk write
+                        bulkUpdates.push(
+                            {
+                                updateOne: {
+                                    filter: { ign: ign, date: dateKey },
+                                    update: { $set: {
+                                        lvl: data.lvl,
+                                        score: data.score,
+                                        flag: data.flag
+                                    }
+                                }
+                            }
+                    });
+                    }
+                }
 
-    //              if (additions.length > 0) {
-    //                 await collection.insertMany(additions);
-    //             }
+                 if (additions.length > 0) {
+                    await collection.insertMany(additions);
+                }
 
-    //             if (bulkUpdates.length > 0) {
-    //                 await collection.bulkWrite(bulkUpdates);
-    //             }
+                if (bulkUpdates.length > 0) {
+                    await collection.bulkWrite(bulkUpdates);
+                }
 
-    //             message.channel.send('Scores updated successfully!');
+                message.channel.send('Scores updated successfully!');
 
-    //         } catch (error) {
-    //             console.log(error);
-    //             message.channel.send('1 or more errors encountered processing scores.');
-    //         } finally {
-    //             await client.close();
-    //         }
+            } catch (error) {
+                console.log(error);
+                message.channel.send('1 or more errors encountered processing scores.');
+            } finally {
+                await client.close();
+            }
 
-    //     } catch (error) {
-    //         console.log(error);
-    //     }
-    // }
+        } catch (error) {
+            console.log(error);
+        }
+    }
 
     //check for gpq score command with ign
     if (message.content.includes("!gpq")) {
@@ -153,7 +153,7 @@ client.on("messageCreate", async (message) => {
             await client.connect();
             const db = client.db('MaplestoryGPQ');
             const collection = db.collection("GPQ");
-            const findResult = await collection.find({ ign: new RegExp("^" + ign, "i") });
+            const findResult = await collection.find({ ign: new RegExp("^" + ign, "i") }).sort({date:-1}).limit(5);
             
             let data = [];
             for await (const doc of findResult){
