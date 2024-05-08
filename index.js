@@ -195,8 +195,9 @@ client.on("messageCreate", async (message) => {
             latest5Scores = latest5Scores.concat(`\`\`\``);
             
             let attachment = await generateScoreChart(data);
-            let charImageRequest = await request(`https://maplestory.nexon.net/api/ranking?id=overall&id2=legendary&rebootIndex=1&character_name=${ign}&page_index=1`)
-            let charImageResponse = (await charImageRequest.body.json())[0];
+            let charImageRequest = await request(`https://www.nexon.com/api/maplestory/no-auth/v1/ranking/na?type=overall&id=legendary&reboot_index=1&page_index=1&character_name=${ign}`)
+            let charImageResponse = (await charImageRequest.body.json()).ranks[0];
+            console.log(charImageResponse.characterImgURL);
             let level = data[data.length-1].lvl;
 
             const exampleEmbed = new EmbedBuilder()
@@ -204,7 +205,7 @@ client.on("messageCreate", async (message) => {
                 .setTitle(exactIgn)
                 .setURL(`https://mapleranks.com/u/${exactIgn}`)
                 .setDescription("Level "+ level + " " + charclass)
-                .setThumbnail(charImageResponse.CharacterImgUrl)
+                .setThumbnail(charImageResponse.characterImgURL)
                 .setImage("attachment://graph.png")
                 .addFields(
                     { name: 'Weekly Ranking', value: '#'+userRank },
