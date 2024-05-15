@@ -138,6 +138,11 @@ client.on("messageCreate", async (message) => {
 
         let ign = message.content.replace('!gpq ','');
 
+        if (ign.toLowerCase() === 'susah'){
+            message.channel.send("https://tenor.com/view/nope-not-today-cat-kitty-gif-17101672"); //send meme instead of her score - as per request.
+            return;
+        }
+
         // fetch data from database
         const client = new MongoClient(config.MongoDBUri, {
             serverApi: {
@@ -197,7 +202,6 @@ client.on("messageCreate", async (message) => {
             let attachment = await generateScoreChart(data);
             let charImageRequest = await request(`https://www.nexon.com/api/maplestory/no-auth/v1/ranking/na?type=overall&id=legendary&reboot_index=1&page_index=1&character_name=${ign}`)
             let charImageResponse = (await charImageRequest.body.json()).ranks[0];
-            console.log(charImageResponse.characterImgURL);
             let level = data[data.length-1].lvl;
 
             const exampleEmbed = new EmbedBuilder()
