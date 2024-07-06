@@ -8,6 +8,7 @@ const NumberFormatHelper = require("./Helpers/NumberFormatHelper.js");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const { Client, Collection, Events, EmbedBuilder, GatewayIntentBits, AttachmentBuilder } = require("discord.js")
 const { generateScoreChart } = require('./chartjs-discord.js');
+const { generateScoreRaceChart } = require('./chartjs-race-discord.js');
 const { request } = require('undici');
 
 const client = new Client({
@@ -216,6 +217,108 @@ client.on("messageCreate", async (message) => {
                 )
                 .addFields(
                     { name: 'Highest Score', value: NumberFormatHelper.toLocaleString(highestScore.score), inline: true },
+                    { name: 'Date', value: highestScore.date.toLocaleDateString(), inline: true },
+                    { name: 'Avg Score', value: NumberFormatHelper.toLocaleString(avgScore), inline: true },
+                )
+                // .addFields(
+                //     { name: '\u200B', value: '\u200B' }, //adding empty row for spacing
+                // )
+                .addFields(
+                    { name: 'Last 5 Scores', value: latest5Scores },
+                )
+                //.setImage('https://i.imgur.com/AfFp7pu.png') // url of generated chart.
+                //.setFooter({ text: 'Made for Generosity v0.9.0', iconURL: 'https://media.istockphoto.com/id/817509202/vector/four-leaf-clover-vector-icon-clover-silhouette-simple-icon-illustration.jpg?s=612x612&w=0&k=20&c=w5o6sZPHaUuNHt_J8Lll1vDlDNaLeqBSkEFwrDZ5r1I=' })
+
+            message.channel.send({ embeds: [exampleEmbed], files: [attachment] });
+
+        } catch (error) {
+            message.channel.send("Woops, an error occured! Unable to process your info.");
+            console.log(error);
+        }
+    }
+
+    if (message.content.includes("!race")) {
+
+        let ign = message.content.replace('!race ','');
+
+        if (ign.toLowerCase() === 'susah'){
+            message.channel.send("https://tenor.com/view/nope-not-today-cat-kitty-gif-17101672"); //send meme instead of her score - as per request.
+            return;
+        }
+
+        // fetch data from database
+        const client = new MongoClient(config.MongoDBUri, {
+            serverApi: {
+                version: ServerApiVersion.v1,
+                strict: true,
+                deprecationErrors: true,
+            }
+        }
+        );
+
+        // Function to fetch a document from Azure Cosmos DB
+        try {
+            await client.connect();
+            const db = client.db('MaplestoryGPQ');
+            const collection = db.collection("GPQ");
+            const findResult = await collection.find({ ign: new RegExp("^" + ign, "i") }).sort({date:-1}).limit(5);
+            
+            let data = [];
+            for await (const doc of findResult){
+                data.push(doc);
+            }
+
+            if (data.length == 0 ){
+                message.channel.send("Unable to find data for user.");
+                return;
+            }
+
+            //sort by latest date
+            data = data.sort(function(a,b){
+                return new Date(a.date) - new Date(b.date)
+            });
+
+            let exactIgn = data[0].ign;
+            const latestDate = data[data.length-1].date;
+            const latestRecords = await collection.find({date:latestDate}).sort({"flag": -1});
+            let rankingData = [];
+            for await (const doc of latestRecords){
+                rankingData.push(doc);
+            }
+
+            //let userRank = rankingData.length == 0 ? "To be calculated" : (rankingData.sort( (a,b) => { return b-a}).findIndex(i => i.ign == exactIgn) + 1);
+            
+            //build out embedded message
+            let highestScore = data.reduce((prev, current) => { return prev.flag > current.flag ? prev : current; });
+            let avgScore = data.length == 1 ? data[0].flag : (data.reduce((sum, current) => { 
+                return {flag: sum.flag + current.flag};
+            })).flag / data.length;
+
+            let charclass = data[0].class;
+            
+            let latest5Scores = `\`\`\``;
+            data.slice(0,5).forEach((obj) => {
+                latest5Scores = latest5Scores.concat(`${NumberFormatHelper.toLocaleString(obj.flag)} on ${obj.date.toLocaleDateString()} \n`);
+            });
+            latest5Scores = latest5Scores.concat(`\`\`\``);
+            
+            let attachment = await generateScoreRaceChart(data);
+            let charImageRequest = await request(`https://www.nexon.com/api/maplestory/no-auth/v1/ranking/na?type=overall&id=legendary&reboot_index=1&page_index=1&character_name=${ign}`)
+            let charImageResponse = (await charImageRequest.body.json()).ranks[0];
+            let level = data[data.length-1].lvl;
+
+            const exampleEmbed = new EmbedBuilder()
+                .setColor(0x0099FF)
+                .setTitle(exactIgn)
+                .setURL(`https://mapleranks.com/u/${exactIgn}`)
+                .setDescription("Level "+ level + " " + charclass)
+                .setThumbnail(charImageResponse.characterImgURL)
+                .setImage("attachment://graph.png")
+                // .addFields(
+                //     { name: 'Weekly Ranking', value: '#'+userRank },
+                // )
+                .addFields(
+                    { name: 'Highest Score', value: NumberFormatHelper.toLocaleString(highestScore.flag), inline: true },
                     { name: 'Date', value: highestScore.date.toLocaleDateString(), inline: true },
                     { name: 'Avg Score', value: NumberFormatHelper.toLocaleString(avgScore), inline: true },
                 )
