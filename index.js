@@ -88,7 +88,7 @@ client.on("messageCreate", async (message) => {
                         date: dateKey,
                         updatedOn: new Date(),
                         score: parseInt(char[3].replace(/\D/g, '')),
-                        flag: parseInt(char[4])
+                        flag: parseInt(char[4].replace(/\D/g, ''))
                     };
 
                     let existingDocCount = await collection.countDocuments({ ign: ign, date: dateKey });
