@@ -25,6 +25,7 @@ client.on("ready", () => {
 })
 
 client.on("messageCreate", async (message) => {
+    let quote = '“Even a small progression can be the start of something great.” – Angela Ruth';
     //un comment to update database running in debug mode
     if (message.content.includes("!update")) {
         try {
@@ -227,7 +228,7 @@ client.on("messageCreate", async (message) => {
                     { name: 'Last 5 Scores', value: latest5Scores },
                 )
                 //.setImage('https://i.imgur.com/AfFp7pu.png') // url of generated chart.
-                //.setFooter({ text: 'Made for Generosity v0.9.0', iconURL: 'https://media.istockphoto.com/id/817509202/vector/four-leaf-clover-vector-icon-clover-silhouette-simple-icon-illustration.jpg?s=612x612&w=0&k=20&c=w5o6sZPHaUuNHt_J8Lll1vDlDNaLeqBSkEFwrDZ5r1I=' })
+                .setFooter({ text: quote, iconURL: 'https://media.istockphoto.com/id/817509202/vector/four-leaf-clover-vector-icon-clover-silhouette-simple-icon-illustration.jpg?s=612x612&w=0&k=20&c=w5o6sZPHaUuNHt_J8Lll1vDlDNaLeqBSkEFwrDZ5r1I=' })
 
             message.channel.send({ embeds: [exampleEmbed], files: [attachment] });
 
@@ -329,7 +330,7 @@ client.on("messageCreate", async (message) => {
                     { name: 'Last 5 Scores', value: latest5Scores },
                 )
                 //.setImage('https://i.imgur.com/AfFp7pu.png') // url of generated chart.
-                //.setFooter({ text: 'Made for Generosity v0.9.0', iconURL: 'https://media.istockphoto.com/id/817509202/vector/four-leaf-clover-vector-icon-clover-silhouette-simple-icon-illustration.jpg?s=612x612&w=0&k=20&c=w5o6sZPHaUuNHt_J8Lll1vDlDNaLeqBSkEFwrDZ5r1I=' })
+                .setFooter({ text: quote, iconURL: 'https://i.imgur.com/BC5eprN.png' })
 
             message.channel.send({ embeds: [exampleEmbed], files: [attachment] });
 
